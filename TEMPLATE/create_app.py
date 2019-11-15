@@ -12,7 +12,7 @@ from .api import api, init_views
 from .commands import init_cli
 from .db import db
 from .flask import App
-from .secret import update_app_config, db_secret_to_url
+from .secret import update_app_config, db_secret_to_url, get_secret
 from aws_xray_sdk.core import patcher, xray_recorder
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 from flask_cors import CORS
