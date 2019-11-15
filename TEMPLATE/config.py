@@ -1,5 +1,7 @@
 import os
 from datetime import timedelta
+import logging
+
 
 CONFIG_EXPECTED_KEYS = ("DATABASE_URL", "OPENAPI_VERSION", "JWT_SECRET_KEY")
 # use local "TEMPLATE" DB for local dev
@@ -48,6 +50,9 @@ class Config:
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "INSECURE")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=8)
     CAN_SEED_DB = True
+
+    NPLUSONE_LOGGER = logging.getLogger("app.nplusone")
+    NPLUSONE_LOG_LEVEL = logging.WARNING
 
 
 class LocalDevConfig(Config):

@@ -19,6 +19,7 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_script import Manager
 from werkzeug.contrib.fixers import ProxyFix
+from nplusone.ext.flask_sqlalchemy import NPlusOne
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ def create_app(test_config=None) -> App:
     app.wsgi_app = ProxyFix(app.wsgi_app)  # type: ignore
     configure_database(app)
     api.init_app(app)  # flask-rest-api
+    NPlusOne(app)
 
     # CLI
     manager = Manager(app)

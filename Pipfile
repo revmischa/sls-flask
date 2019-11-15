@@ -23,6 +23,7 @@ flask-jwt-extended = "*"
 requests = "*"
 Faker = "*"
 factory_boy = "*"
+nplusone = "*"
 
 [dev-packages]
 pytest-factoryboy = "*"
