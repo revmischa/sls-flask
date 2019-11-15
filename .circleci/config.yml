@@ -13,16 +13,19 @@ executors:
           POSTGRES_USER: postgres
           POSTGRES_DB: circle
     working_directory: ~/pybuild
-
+  python-node:
+    working_directory: ~/pynode
+    docker:
+      - image: jetbridge/ci-python37-node10
 
 workflows:
   version: 2
   build_and_test:
     jobs:
-      - checkout_code
+      - checkout_code_build_test
       - deps:
           requires:
-            - checkout_code
+            - checkout_code_build_test
       - tests:
           requires:
             - deps
@@ -32,16 +35,46 @@ workflows:
       - type_checks:
           requires:
             - deps
+  deployment:
+    # prepare deployment environment with python + nodejs + serverless
+    # not master branch: test deployment to a brand new environment then tear it down
+    # master branch: deploy to the "dev" stage (optional)
+    jobs:
+      - checkout_code_deployment
+      - create_deployment_environment:
+          requires:
+            - checkout_code_deployment
+      - package_deployment:
+          requires:
+            - create_deployment_environment
+      # uncomment to deploy to test stack on each commit not on master
+      - test_deploy:
+          requires:
+            - package_deployment
+          filters:
+            branches:
+              ignore:
+                - master
+                - staging
+                - prod
+      # # uncomment to auto-deploy master branch to dev stage
+      # - deploy_dev:
+      #     requires:
+      #       - package_deployment
+      #     filters:
+      #       branches:
+      #         only:
+      #           - master
 
 jobs:
   # git clone
-  checkout_code:
+  checkout_code_build_test:
     executor: py-exec
     working_directory: ~/pybuild
     steps:
       - checkout
       - save_cache:
-          key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
+          key: v1-pybuild-repo-{{ .Environment.CIRCLE_SHA1 }}
           paths:
             - ~/pybuild
 
@@ -52,26 +85,24 @@ jobs:
       - run: sudo chown -R circleci:circleci /usr/local/bin
       - run: sudo chown -R circleci:circleci /usr/local/lib/python3.7/site-packages
       - restore_cache:
-          key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
+          key: v1-pybuild-repo-{{ .Environment.CIRCLE_SHA1 }}
       - restore_cache:
-          key: v2-dep-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: v1-dep-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
       - run:
           command: |
             sudo pip install pipenv
             pipenv install --deploy --dev
       - save_cache: # cache Python dependencies using checksum of Pipfile as the cache-key
-          key: v2-dep-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: v1-dep-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
           paths:
-            - "~/pybuild/.venv"
+            - ~/pybuild
 
   # pytest
   tests:
     executor: py-exec
     steps:
       - restore_cache:
-          key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
-      - restore_cache:
-          key: v2-dep-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: v1-dep-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
       - run:
           command: |
             mkdir test-reports
@@ -84,9 +115,7 @@ jobs:
     executor: py-exec
     steps:
       - restore_cache:
-          key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
-      - restore_cache:
-          key: v2-dep-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: v1-dep-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
       - run:
           command: |
             pipenv run mypy .
@@ -96,9 +125,92 @@ jobs:
     executor: py-exec
     steps:
       - restore_cache:
-          key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
-      - restore_cache:
-          key: v2-dep-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: v1-dep-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
       - run:
           command: |
             pipenv run flake8
+
+  # DEPLOYMENT:
+  checkout_code_deployment:
+    executor: python-node
+    working_directory: ~/pynode
+    steps:
+      - checkout
+      - save_cache:
+          key: v1-deploy-repo-{{ .Environment.CIRCLE_SHA1 }}
+          paths:
+            - ~/pynode
+
+  create_deployment_environment:
+    # prepare serverless environment
+    executor: python-node
+    steps:
+      - restore_cache:
+          key: v1-deploy-repo-{{ .Environment.CIRCLE_SHA1 }}
+      - restore_cache:
+          key: v1-deploy-deps-{{ .Environment.CIRCLE_SHA1 }}
+      - run:
+          name: Install serverless plugins
+          command: |
+            npm install --no-save
+      - save_cache:
+          key: v1-deploy-deps-{{ .Environment.CIRCLE_SHA1 }}
+          paths:
+            - ~/pynode
+            # - /usr/local/lib/node_modules
+  package_deployment:
+    # package serverless application for deployment
+    executor: python-node
+    steps:
+      - restore_cache:
+          key: v1-deploy-deps-{{ .Environment.CIRCLE_SHA1 }}
+      - run:
+          name: Lock pipfile
+          command: pipenv lock --requirements
+      - run:
+          name: Serverless package
+          command: AWS_PROFILE= sls package --stage test-${CIRCLE_BRANCH}-${CIRCLE_BUILD_NUM} --package slspkg.zip
+      - save_cache:
+          key: v1-deploy-slspkg-{{ .Environment.CIRCLE_SHA1 }}
+          paths:
+            - slspkg.zip
+  test_deploy:
+    executor: python-node
+    steps:
+      - restore_cache:
+          key: v1-deploy-deps-{{ .Environment.CIRCLE_SHA1 }}
+      - restore_cache:
+          key: v1-deploy-slspkg-{{ .Environment.CIRCLE_SHA1 }}
+      - run:
+          name: Serverless deploy (test-${CIRCLE_BRANCH}-${CIRCLE_SHA1})
+          command: AWS_PROFILE= sls deploy --package slspkg.zip --stage test-${CIRCLE_BRANCH}-${CIRCLE_BUILD_NUM}
+      - run:
+          name: Initialize DB
+          command: AWS_PROFILE= sls invoke -f initDb --stage dev
+      - run:
+          name: Seed DB
+          command: AWS_PROFILE= sls invoke -f seed --stage dev
+      - run:
+          name: Wait on stack success or failure
+          command: |
+            # aws cloudformation wait stack-create-complete --stack-id
+      - run:
+          name: Remove test CloudFormation stack
+          command: AWS_PROFILE= sls remove --stage test-${CIRCLE_BRANCH}-${CIRCLE_BUILD_NUM}
+          when: always  # always remove stack when we're done
+  deploy_dev:
+    executor: python-node
+    steps:
+      - restore_cache:
+          key: v1-deploy-deps-{{ .Environment.CIRCLE_SHA1 }}
+      - restore_cache:
+          key: v1-deploy-slspkg-{{ .Environment.CIRCLE_SHA1 }}
+      - run:
+          name: Serverles deploy (dev)
+          command: AWS_PROFILE= sls deploy --package slspkg.zip --stage dev
+      - run:
+          name: Initialize DB
+          command: AWS_PROFILE= sls invoke -f initDb --stage dev
+      - run:
+          name: Seed DB
+          command: AWS_PROFILE= sls invoke -f seed --stage dev

@@ -6,11 +6,6 @@ plugins:
   - serverless-wsgi
 
 custom:
-  config:
-    dev:
-      DeletionProtection: false
-    prod:
-      DeletionProtection: true
   stackName: ${self:service}-${self:provider.stage}
   xray: 'Active'  # AWS Xray tracing of requests, queries
   db:
@@ -111,7 +106,6 @@ functions:
     layers: ${self:custom.layers.default}
     vpc: ${self:custom.vpc}
     timeout: 300
-
 
 resources:
   - ${file(cloudformation/vpc.yml)}
