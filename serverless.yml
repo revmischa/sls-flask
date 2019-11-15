@@ -9,7 +9,7 @@ custom:
   stackName: ${self:service}-${self:provider.stage}
   xray: 'Active'  # AWS Xray tracing of requests, queries
   db:
-    dbname: "TEMPLATEx"
+    dbname: "TEMPLATE"
     minCapacity: 2
     maxCapacity: 4
     secondsUntilAutoPause: 43200  # if not stage=='prod'
