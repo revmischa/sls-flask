@@ -7,7 +7,7 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Properties:
       Description: 'RDS master admin'
-      Name: ${self:custom.secrets.rds.credentials}
+      Name: ${self:custom.secrets.rds}
       GenerateSecretString:
         SecretStringTemplate: '{"username": "dbadmin"}'
         GenerateStringKey: 'password'
