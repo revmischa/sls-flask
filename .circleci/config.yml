@@ -48,15 +48,15 @@ workflows:
           requires:
             - create_deployment_environment
       # uncomment to deploy to test stack on each commit not on master
-      - test_deploy:
-          requires:
-            - package_deployment
-          filters:
-            branches:
-              ignore:
-                - master
-                - staging
-                - prod
+      # - test_deploy:
+      #     requires:
+      #       - package_deployment
+      #     filters:
+      #       branches:
+      #         ignore:
+      #           - master
+      #           - staging
+      #           - prod
       # # uncomment to auto-deploy master branch to dev stage
       # - deploy_dev:
       #     requires:
@@ -186,10 +186,10 @@ jobs:
           command: AWS_PROFILE= sls deploy --package slspkg.zip --stage test-${CIRCLE_BRANCH}-${CIRCLE_BUILD_NUM}
       - run:
           name: Initialize DB
-          command: AWS_PROFILE= sls invoke -f initDb --stage dev
+          command: AWS_PROFILE= sls invoke -f initDb --stage test-${CIRCLE_BRANCH}-${CIRCLE_BUILD_NUM}
       - run:
           name: Seed DB
-          command: AWS_PROFILE= sls invoke -f seed --stage dev
+          command: AWS_PROFILE= sls invoke -f seed --stage test-${CIRCLE_BRANCH}-${CIRCLE_BUILD_NUM}
       - run:
           name: Wait on stack success or failure
           command: |
@@ -207,10 +207,10 @@ jobs:
           key: v1-deploy-slspkg-{{ .Environment.CIRCLE_SHA1 }}
       - run:
           name: Serverles deploy (dev)
-          command: AWS_PROFILE= sls deploy --package slspkg.zip --stage dev
+          command: AWS_PROFILE= sls deploy --package slspkg.zip --stage test-${CIRCLE_BRANCH}-${CIRCLE_BUILD_NUM}
       - run:
           name: Initialize DB
-          command: AWS_PROFILE= sls invoke -f initDb --stage dev
+          command: AWS_PROFILE= sls invoke -f initDb --stage test-${CIRCLE_BRANCH}-${CIRCLE_BUILD_NUM}
       - run:
           name: Seed DB
-          command: AWS_PROFILE= sls invoke -f seed --stage dev
+          command: AWS_PROFILE= sls invoke -f seed --stage test-${CIRCLE_BRANCH}-${CIRCLE_BUILD_NUM}

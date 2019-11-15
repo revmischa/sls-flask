@@ -29,3 +29,14 @@ def update_app_config(app, secret_name: str):
         app.config.update(secrets)
     else:
         log.warning(f"Failed to load secrets '{secret_name}'")
+
+
+def db_secret_to_url(secrets) -> str:
+    """Given a database secret construct a connection string for DATABASE_URL config."""
+    password = secrets.get('password', '')
+    dbname = secrets.get('dbname', '')
+    engine = secrets.get('engine', '')
+    port = secrets.get('port', '5432')
+    host = secrets.get('host', '')
+    username = secrets.get('username', '')
+    return f"{engine}://{username}:{password}@{host}:{port}/{dbname}"

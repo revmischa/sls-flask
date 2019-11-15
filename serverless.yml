@@ -19,9 +19,7 @@ custom:
       - ${self:custom.layers.psycopg}
   secrets:
     prefix: "${self:service}/${self:provider.stage}"
-    rds:
-      credentials: "${self:custom.secrets.prefix}/rds/credentials"
-      url: "${self:custom.secrets.prefix}/rds/url"
+    rds: "${self:custom.secrets.prefix}/rds/credentials"
   vpc:
     securityGroupIds:
       - "Fn::GetAtt": ServerlessSecurityGroup.GroupId
@@ -59,7 +57,7 @@ provider:
 
   environment:
     SECRET_PREFIX: ${self:custom.secrets.prefix}
-    RDS_SECRETS_NAME: ${self:custom.secrets.rds.url}
+    RDS_SECRETS_NAME: ${self:custom.secrets.rds}
     LOAD_RDS_SECRETS: 'true'
     STAGE: ${self:provider.stage}
     XRAY: ${self:custom.xray}

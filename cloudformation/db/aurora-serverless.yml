@@ -14,15 +14,6 @@ Resources:
         PasswordLength: 16
         ExcludeCharacters: '"@/\%:\\;'
 
-  # our DB connection info secret in the form of a DSN connection string
-  RDSURLSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Description: 'RDS DATABASE_URL'
-      Name: ${self:custom.secrets.rds.url}
-      SecretString:
-        "Fn::Join": ['', ['{"DATABASE_URL": "', 'postgresql://', {"Fn::Join": ['', ['{{resolve:secretsmanager:', !Ref RDSInstanceSecret, ':SecretString:username}}']]}, ':', {"Fn::Join": ['', ['{{resolve:secretsmanager:', !Ref RDSInstanceSecret, ':SecretString:password}}']]}, '@',{ "Fn::Join": [":", ["Fn::GetAtt": [DBCluster, Endpoint.Address], "Fn::GetAtt": [DBCluster, Endpoint.Port]]] }, "/${self:custom.db.dbname}", '"}']]
-
   SecretRDSInstanceAttachment:
     Type: AWS::SecretsManager::SecretTargetAttachment
     Properties:
