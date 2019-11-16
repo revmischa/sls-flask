@@ -2,7 +2,6 @@ import os
 from datetime import timedelta
 import logging
 
-
 CONFIG_EXPECTED_KEYS = ("DATABASE_URL", "OPENAPI_VERSION", "JWT_SECRET_KEY")
 # use local "TEMPLATE" DB for local dev
 DEFAULT_DB_URL = "postgresql:///TEMPLATE"
@@ -17,7 +16,7 @@ class Config:
     SECRETS_NAME = os.getenv("APP_SECRETS_NAME", "TEMPLATE/dev")
     RDS_SECRETS_NAME = os.getenv("RDS_SECRETS_NAME")
 
-    DEV_DB_SCRIPTS_ENABLED = True
+    DEV_DB_SCRIPTS_ENABLED = False  # can init-db/seed/etc be run?
 
     DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DB_URL)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -49,7 +48,6 @@ class Config:
     }
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "INSECURE")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=8)
-    CAN_SEED_DB = True
 
     NPLUSONE_LOGGER = logging.getLogger("app.nplusone")
     NPLUSONE_LOG_LEVEL = logging.WARNING
@@ -59,18 +57,19 @@ class LocalDevConfig(Config):
     """Local development environment config."""
 
     DEBUG = True
+    DEV_DB_SCRIPTS_ENABLED = True
 
 
 class DevConfig(Config):
     """AWS dev environment and DB."""
 
-    pass
+    DEV_DB_SCRIPTS_ENABLED = True
 
 
 class StagingConfig(Config):
     """AWS staging environment and DB."""
 
-    pass
+    DEV_DB_SCRIPTS_ENABLED = True
 
 
 class ProdConfig(Config):
@@ -79,9 +78,6 @@ class ProdConfig(Config):
     # name of Secrets Manager secretID for config
     APP_SECRETS_NAME = "TEMPLATE/prod"
     LOAD_APP_SECRETS = False
-
-    CAN_SEED_DB = False
-    DEV_DB_SCRIPTS_ENABLED = False
 
 
 # config checks
