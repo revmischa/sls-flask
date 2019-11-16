@@ -78,6 +78,7 @@ class ProdConfig(Config):
     # name of Secrets Manager secretID for config
     APP_SECRETS_NAME = "TEMPLATE/prod"
     LOAD_APP_SECRETS = False
+    DEV_DB_SCRIPTS_ENABLED = False
 
 
 # config checks
