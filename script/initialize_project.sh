@@ -41,9 +41,13 @@ function init_db {
     poetry run flask seed
 }
 
+function init_git {
+    git add .
+    git commit -am "Project initialized"
+}
+
 
 function finish {
-    git add .
     set +x
     echo ""
     echo "Project $name ready!"
@@ -61,4 +65,5 @@ function finish {
 rename
 install_deps
 init_db
+init_git
 finish
