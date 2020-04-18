@@ -1,4 +1,4 @@
-.PHONY: init init-from-template run hooks seed test check cfn-lint ldb migrate idb flask-deploy-dev deploy-qa
+.PHONY: init init-from-template run hooks seed test check cfn-lint ldb migrate idb flask-deploy-dev deploy-dev
 
 PYTHON=poetry run
 
@@ -46,12 +46,12 @@ dropcreatedb:
 migrate:
 	flask db upgrade
 
-deploy-qa:
-	sls deploy --stage qa
-	sls --stage qa invoke -f migrate
+deploy-dev:
+	sls deploy --stage dev
+	sls --stage dev invoke -f migrate
 
-seed-qa: deploy-qa
-	sls --stage qa invoke -f seed
+seed-dev: deploy-dev
+	sls --stage dev invoke -f seed
 
 deploy-prd:
 	sls deploy --stage prd

@@ -28,7 +28,6 @@ Resources:
     Type: AWS::RDS::DBCluster
     Properties:
       DeletionProtection: !If [IsProd, true, false]
-      # EnablePerformanceInsights: true
       Engine: aurora-postgresql
       EngineMode: serverless
       EnableHttpEndpoint: true

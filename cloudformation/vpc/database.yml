@@ -1,0 +1,58 @@
+Resources:
+  # Database subnets
+  DBSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: '10.${self:custom.network.classB}.20.0/24'
+      Tags:
+      - Key: Name
+        Value: !Join
+                 - '_'
+                 - - '10.${self:custom.network.classB}.0.0/16'
+                   - !Select [0, !GetAZs '']
+                   - 'Database'
+      - Key: Reach
+        Value: private
+  DBSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: '10.${self:custom.network.classB}.21.0/24'
+      Tags:
+      - Key: Name
+        Value: !Join
+                 - '_'
+                 - - '10.${self:custom.network.classB}.0.0/16'
+                   - !Select [1, !GetAZs '']
+                   - 'Database'
+      - Key: Reach
+        Value: private
+  DBSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      AvailabilityZone: !Select [2, !GetAZs '']
+      CidrBlock: '10.${self:custom.network.classB}.22.0/24'
+      Tags:
+      - Key: Name
+        Value: !Join
+                 - '_'
+                 - - '10.${self:custom.network.classB}.0.0/16'
+                   - !Select [2, !GetAZs '']
+                   - 'Database'
+      - Key: Reach
+        Value: private
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "Database"
+      SubnetIds:
+      - Ref: DBSubnetA
+      - Ref: DBSubnetB
+      - Ref: DBSubnetC

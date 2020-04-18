@@ -133,7 +133,7 @@ def configure_class(app: App) -> None:
             if stage == "prd":
                 config_class = "TEMPLATE.config.ProductionConfig"
             else:
-                config_class = "TEMPLATE.config.QAConfig"
+                config_class = "TEMPLATE.config.DevConfig"
         else:
             # local dev
             config_class = "TEMPLATE.config.LocalDevConfig"
@@ -142,9 +142,10 @@ def configure_class(app: App) -> None:
 
 
 def configure_secrets(app: App) -> None:
-    if app.config.get("LOAD_RDS_SECRET"):
+    if app.config.get("LOAD_RDS_SECRETS"):
         # fetch db config secrets from Secrets Manager
-        secret_name = app.config["RDS_SECRET_NAME"]
+        secret_name = app.config["RDS_SECRETS_NAME"]
+        assert secret_name, "RDS_SECRETS_NAME missing"
         rds_secrets = get_secret(secret_name=secret_name)
         # construct database connection string from secret
         app.config["SQLALCHEMY_DATABASE_URI"] = db_secret_to_url(rds_secrets)

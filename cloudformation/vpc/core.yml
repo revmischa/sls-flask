@@ -1,0 +1,31 @@
+# Core of VPC private network.
+# Defines VPC, internet gateway
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      Tags:
+        - Key: "Name"
+          Value: "#{AWS::StackName}"
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      CidrBlock: '10.${self:custom.network.classB}.0.0/16'
+
+  # internet gateway
+  IGW:  # Internet GateWay
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: '10.${self:custom.network.classB}.0.0/16'
+  IGWAttachment:  # Connect IGW to our VPC
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref IGW
+      VpcId: !Ref VPC
+
+Outputs:
+  CidrBlock:
+    Description: 'The set of IP addresses for the VPC'
+    Value: !GetAtt 'VPC.CidrBlock'

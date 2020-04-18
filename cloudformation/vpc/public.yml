@@ -1,0 +1,91 @@
+Resources:
+  # Public subnets
+  PublicSubnetA:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: '10.${self:custom.network.classB}.1.0/24'
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join
+                 - '_'
+                 - - '10.${self:custom.network.classB}.0.0/16'
+                   - !Select [0, !GetAZs '']
+                   - 'Public'
+      - Key: Reach
+        Value: public
+  PublicSubnetB:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: '10.${self:custom.network.classB}.2.0/24'
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join
+                 - '_'
+                 - - '10.${self:custom.network.classB}.0.0/16'
+                   - !Select [1, !GetAZs '']
+                   - 'Public'
+      - Key: Reach
+        Value: public
+  PublicSubnetC:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [2, !GetAZs '']
+      CidrBlock: '10.${self:custom.network.classB}.3.0/24'
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join
+                 - '_'
+                 - - '10.${self:custom.network.classB}.0.0/16'
+                   - !Select [2, !GetAZs '']
+                   - 'Public'
+      - Key: Reach
+        Value: public
+  PublicSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "NAT-ed public"
+      SubnetIds:
+      - Ref: PublicSubnetA
+      - Ref: PublicSubnetB
+      - Ref: PublicSubnetC
+
+  # route public subnet to IGW
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Join
+                 - '_'
+                 - - '10.${self:custom.network.classB}.0.0/16'
+                   - 'Public'
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+  PublicARouteTableAssociation:  # link public subnets to PublicRouteTable
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetA
+  PublicBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetB
+  PublicCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetC

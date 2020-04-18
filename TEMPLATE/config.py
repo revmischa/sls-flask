@@ -12,7 +12,9 @@ class Config:
 
     # load more config from secrets manager?
     LOAD_APP_SECRETS = os.getenv("LOAD_APP_SECRETS", False)
-    SECRETS_NAME = os.getenv("APP_SECRETS_NAME", "TEMPLATE/dev")
+    APP_SECRETS_NAME = os.getenv("APP_SECRETS_NAME", "TEMPLATE/dev")
+    LOAD_RDS_SECRETS = os.getenv("LOAD_RDS_SECRETS", False)
+    RDS_SECRETS_NAME = os.getenv("RDS_SECRETS_NAME")
 
     # use aurora data API?
     AURORA_SECRET_ARN = os.getenv("AURORA_SECRET_ARN")
@@ -65,8 +67,8 @@ class LocalDevConfig(Config):
     DEV_DB_SCRIPTS_ENABLED = True
 
 
-class QAConfig(Config):
-    """AWS QA environment and DB."""
+class DevConfig(Config):
+    """AWS dev environment and DB."""
 
     DEV_DB_SCRIPTS_ENABLED = True
 

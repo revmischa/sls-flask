@@ -1,0 +1,106 @@
+# Networking to put lambda functions inside a VPC
+#
+# This is needed if you want to connect lambdas to the internet and
+#  to the RDS database via local networking (i.e. libpq-based driver) simultaneously
+#
+# This is optional; you can connect to the DB via the Aurora Data API,
+#  make the DB public, not connect lambdas to the DB, or
+#  not connect them to the internet.
+
+Resources:
+  LambdaSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Join
+                 - '_'
+                 - - '10.${self:custom.network.classB}.0.0/16'
+                   - !Select [0, !GetAZs '']
+                   - 'Lambda'
+      - Key: Reach
+        Value: public
+      VpcId:
+        Ref: VPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: '10.${self:custom.network.classB}.10.0/24'
+  LambdaSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Join
+                 - '_'
+                 - - '10.${self:custom.network.classB}.0.0/16'
+                   - !Select [1, !GetAZs '']
+                   - 'Lambda'
+      - Key: Reach
+        Value: public
+      VpcId:
+        Ref: VPC
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: '10.${self:custom.network.classB}.11.0/24'
+  LambdaSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Join
+                 - '_'
+                 - - '10.${self:custom.network.classB}.0.0/16'
+                   - !Select [2, !GetAZs '']
+                   - 'Lambda'
+      - Key: Reach
+        Value: public
+      VpcId:
+        Ref: VPC
+      AvailabilityZone: !Select [2, !GetAZs '']
+      CidrBlock: '10.${self:custom.network.classB}.12.0/24'
+
+  NATIP:  # IP for public NAT
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  NatGatewayA:  # NAT GW in public subnet
+    # technically there should be three of these in case AZ "A" fails
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NATIP.AllocationId
+      SubnetId: !Ref PublicSubnetA
+  PrivateRouteTable:  # Route table for internal routing
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: "#{AWS::StackName} Private"
+  DefaultPrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayA
+  SubARouteTableAssociation:  # link private subnets to PrivateRouteTable
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref LambdaSubnetA
+  SubBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref LambdaSubnetB
+  SubCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref LambdaSubnetC
+
+  LambdaPrivateSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "NAT-ed Lambdas"
+      SubnetIds:
+      - Ref: LambdaSubnetA
+      - Ref: LambdaSubnetB
+      - Ref: LambdaSubnetC

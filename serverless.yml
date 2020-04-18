@@ -14,14 +14,26 @@ custom:
     dbname: TEMPLATE
     minCapacity: 2
     maxCapacity: 4
-    secondsUntilAutoPause: 43200 # if not stage=='prd'
+    secondsUntilAutoPause: 7200  # if not stage=='prd'
   layers:
-    psycopg: "arn:aws:lambda:${self:provider.region}:898466741470:layer:psycopg2-py37:1"
-    default: []
-      # - ${self:custom.layers.psycopg}
+    # https://github.com/jetbridge/psycopg2-lambda-layer
+    psycopg: "arn:aws:lambda:${self:provider.region}:898466741470:layer:psycopg2-py38:1"
+    # https://github.com/jetbridge/jetkit-base-lambda-layer
+    jkbase: "arn:aws:lambda:${self:provider.region}:898466741470:layer:jetkit-py38:3"
+    default:
+      - ${self:custom.layers.psycopg}
+      - ${self:custom.layers.jkbase}
   secrets:
     prefix: "${self:service}/${self:provider.stage}"
     rds: "${self:custom.secrets.prefix}/rds/credentials"
+  vpc:
+    securityGroupIds:
+      - !GetAtt LambdaSecurityGroup.GroupId
+  # uncomment to enable lambda VPC networking:
+  #   subnetIds:
+  #     - Ref: LambdaSubnetA
+  #     - Ref: LambdaSubnetB
+  #     - Ref: LambdaSubnetC
   network:
     classB: 10 # second octet of VPC CIDR block (10.classB.0.0/16)
   bastion:  # EC2 host to access database
@@ -44,12 +56,42 @@ custom:
     useDownloadCache: true
     useStaticCache: true
     noDeploy:
-      - psycopg2 # provided by layer
-      - psycopg2-binary # provided by layer
+      # provided by runtime
       - boto3
       - botocore
       - s3transfer
       - docutils
+
+      # provided by layers
+      - psycopg2
+      - psycopg2-binary
+      - werkzeug
+      - flask
+      - sqlalchemy
+      - faker
+      - pytest
+      - future
+      - pytz
+      - alembic
+      - jinja2
+      - beautifulsoup4
+      - bs4
+      - text_unidecode
+      - requests
+      - marshmallow
+      - python_dateutil
+      - soupsieve
+      - chardet
+      - attrs
+      - mako
+      - certifi
+      - idna
+      - urllib3
+      - pyparsing
+      - packaging
+      - more_itertools
+      - dateutil
+      - click
     slim: true
     slimPatternsAppendDefaults: false  # need dist-info for sqlalchemy plugin
     slimPatterns:
@@ -59,7 +101,7 @@ custom:
 provider:
   name: aws
   runtime: python3.8
-  stage: ${opt:stage, 'qa'}
+  stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'eu-west-1'}
 
   # x-ray
@@ -68,16 +110,19 @@ provider:
 
   environment:
     SECRET_PREFIX: ${self:custom.secrets.prefix}
+    RDS_SECRETS_NAME: ${self:custom.secrets.rds}
 
-    # aurora database credentials
+    # aurora data API credentials
     AURORA_SECRET_ARN: !Ref RDSInstanceSecret
     AURORA_CLUSTER_ARN: !Join [':', ["arn:aws:rds:#{AWS::Region}:#{AWS::AccountId}:cluster", !Ref DBCluster]]
-    SQLALCHEMY_DATABASE_URI: !Join ['/', ["postgresql+auroradataapi://:@", !Ref DBCluster]]
-    AURORA_DATA_API_ENABLED: 'true'
     DATABASE_NAME: ${self:custom.db.dbname}
 
-    RDS_SECRET_NAME: ${self:custom.secrets.rds}
-    LOAD_RDS_SECRET: "false"
+    # comment if connecting to RDS from VPC
+    AURORA_DATA_API_ENABLED: 'true'
+    SQLALCHEMY_DATABASE_URI: !Join ['/', ["postgresql+auroradataapi://:@", !Ref DBCluster]]
+
+    # uncomment if connecting to RDS from VPC
+    # LOAD_RDS_SECRETS: "true"
 
     STAGE: ${self:provider.stage}
     XRAY: ${self:custom.xray}
@@ -121,23 +166,32 @@ functions:
     memorySize: 512
     layers: ${self:custom.layers.default}
     timeout: 10
+    vpc: ${self:custom.vpc}
 
   seed:
     handler: TEMPLATE.commands.seed_handler
     layers: ${self:custom.layers.default}
     timeout: 120
+    vpc: ${self:custom.vpc}
 
   initDb:
     handler: TEMPLATE.commands.init_handler
     layers: ${self:custom.layers.default}
     timeout: 300
+    vpc: ${self:custom.vpc}
 
   migrate:
     handler: TEMPLATE.commands.migrate_handler
     timeout: 900
     layers: ${self:custom.layers.default}
+    vpc: ${self:custom.vpc}
 
 resources:
-  - ${file(cloudformation/vpc.yml)}
+  - ${file(cloudformation/vpc/core.yml)}
+  - ${file(cloudformation/vpc/public.yml)}
+  - ${file(cloudformation/vpc/database.yml)}
+  - ${file(cloudformation/vpc/security.yml)}
+  # uncomment to enable lambda VPC networking
+  # - ${file(cloudformation/vpc/lambda.yml)}
   - ${file(cloudformation/db/aurora-serverless.yml)}
   - ${file(cloudformation/bastion.yml)}
